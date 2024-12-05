@@ -3,36 +3,14 @@
 import os
 import sys
 import json
-import importlib.util
 
 import rclpy
-from rclpy.node import Node
-from std_msgs.msg import Header
-from nmea_msgs.msg import Sentence
 
+from ntrip_ros_base import NTRIPRosBase
 from ntrip_client.ntrip_client import NTRIPClient
-from ntrip_client.nmea_parser import NMEA_DEFAULT_MAX_LENGTH, NMEA_DEFAULT_MIN_LENGTH
 
-# Try to import a couple different types of RTCM messages
-_MAVROS_MSGS_NAME = "mavros_msgs"
-_RTCM_MSGS_NAME = "rtcm_msgs"
-have_mavros_msgs = False
-have_rtcm_msgs = False
-if importlib.util.find_spec(_MAVROS_MSGS_NAME) is not None:
-  have_mavros_msgs = True
-  from mavros_msgs.msg import RTCM as mavros_msgs_RTCM
-if importlib.util.find_spec(_RTCM_MSGS_NAME) is not None:
-  have_rtcm_msgs = True
-  from rtcm_msgs.msg import Message as rtcm_msgs_RTCM
-
-class NTRIPRos(Node):
+class NTRIPRos(NTRIPRosBase):
   def __init__(self):
-    # Read a debug flag from the environment that should have been set by the launch file
-    try:
-      self._debug = json.loads(os.environ["NTRIP_CLIENT_DEBUG"].lower())
-    except:
-      self._debug = False
-
     # Init the node and declare params
     super().__init__('ntrip_client')
     self.declare_parameters(
@@ -49,12 +27,6 @@ class NTRIPRos(Node):
         ('cert', 'None'),
         ('key', 'None'),
         ('ca_cert', 'None'),
-        ('rtcm_frame_id', 'odom'),
-        ('nmea_max_length', NMEA_DEFAULT_MAX_LENGTH),
-        ('nmea_min_length', NMEA_DEFAULT_MIN_LENGTH),
-        ('rtcm_message_package', _MAVROS_MSGS_NAME),
-        ('reconnect_attempt_max', NTRIPClient.DEFAULT_RECONNECT_ATTEMPT_MAX),
-        ('reconnect_attempt_wait_seconds', NTRIPClient.DEFAULT_RECONNECT_ATEMPT_WAIT_SECONDS),
         ('rtcm_timeout_seconds', NTRIPClient.DEFAULT_RTCM_TIMEOUT_SECONDS),
       ]
     )
@@ -69,10 +41,6 @@ class NTRIPRos(Node):
     if ntrip_version == 'None':
       ntrip_version = None
 
-    # Set the log level to debug if debug is true
-    if self._debug:
-      rclpy.logging.set_logger_level(self.get_logger().name, rclpy.logging.LoggingSeverity.DEBUG)
-
     # If we were asked to authenticate, read the username and password
     username = None
     password = None
@@ -80,36 +48,11 @@ class NTRIPRos(Node):
       username = self.get_parameter('username').value
       password = self.get_parameter('password').value
       if not username:
-        self.get_logger().error(
-          'Requested to authenticate, but param "username" was not set')
+        self.get_logger().error('Requested to authenticate, but param "username" was not set')
         sys.exit(1)
       if not password:
-        self.get_logger().error(
-          'Requested to authenticate, but param "password" was not set')
+        self.get_logger().error('Requested to authenticate, but param "password" was not set')
         sys.exit(1)
-
-    # Read an optional Frame ID from the config
-    self._rtcm_frame_id = self.get_parameter('rtcm_frame_id').value
-
-    # Determine the type of RTCM message that will be published
-    rtcm_message_package = self.get_parameter('rtcm_message_package').value
-    if rtcm_message_package == _MAVROS_MSGS_NAME:
-      if have_mavros_msgs:
-        self._rtcm_message_type = mavros_msgs_RTCM
-        self._create_rtcm_message = self._create_mavros_msgs_rtcm_message
-      else:
-        self.get_logger().fatal('The requested RTCM package {} is a valid option, but we were unable to import it. Please make sure you have it installed'.format(rtcm_message_package))
-    elif rtcm_message_package == _RTCM_MSGS_NAME:
-      if have_rtcm_msgs:
-        self._rtcm_message_type = rtcm_msgs_RTCM
-        self._create_rtcm_message = self._create_rtcm_msgs_rtcm_message
-      else:
-        self.get_logger().fatal('The requested RTCM package {} is a valid option, but we were unable to import it. Please make sure you have it installed'.format(rtcm_message_package))
-    else:
-      self.get_logger().fatal('The RTCM package {} is not a valid option. Please choose between the following packages {}'.format(rtcm_message_package, ','.join([_MAVROS_MSGS_NAME, _RTCM_MSGS_NAME])))
-
-    # Setup the RTCM publisher
-    self._rtcm_pub = self.create_publisher(self._rtcm_message_type, 'rtcm', 10)
 
     # Initialize the client
     self._client = NTRIPClient(
@@ -138,59 +81,7 @@ class NTRIPRos(Node):
       self._client.ca_cert = None
 
     # Get some timeout parameters for the NTRIP client
-    self._client.nmea_parser.nmea_max_length = self.get_parameter('nmea_max_length').value
-    self._client.nmea_parser.nmea_min_length = self.get_parameter('nmea_min_length').value
-    self._client.reconnect_attempt_max = self.get_parameter('reconnect_attempt_max').value
-    self._client.reconnect_attempt_wait_seconds = self.get_parameter('reconnect_attempt_wait_seconds').value
     self._client.rtcm_timeout_seconds = self.get_parameter('rtcm_timeout_seconds').value
-
-  def run(self):
-    # Connect the client
-    if not self._client.connect():
-      self.get_logger().error('Unable to connect to NTRIP server')
-      return False
-    # Setup our subscriber
-    self._nmea_sub = self.create_subscription(Sentence, 'nmea', self.subscribe_nmea, 10)
-
-    # Start the timer that will check for RTCM data
-    self._rtcm_timer = self.create_timer(0.1, self.publish_rtcm)
-    return True
-
-  def stop(self):
-    self.get_logger().info('Stopping RTCM publisher')
-    if self._rtcm_timer:
-      self._rtcm_timer.cancel()
-      self._rtcm_timer.destroy()
-    self.get_logger().info('Disconnecting NTRIP client')
-    self._client.disconnect()
-    self.get_logger().info('Shutting down node')
-    self.destroy_node()
-
-  def subscribe_nmea(self, nmea):
-    # Just extract the NMEA from the message, and send it right to the server
-    self._client.send_nmea(nmea.sentence)
-
-  def publish_rtcm(self):
-    for raw_rtcm in self._client.recv_rtcm():
-      self._rtcm_pub.publish(self._create_rtcm_message(raw_rtcm))
-
-  def _create_mavros_msgs_rtcm_message(self, rtcm):
-    return mavros_msgs_RTCM(
-      header=Header(
-        stamp=self.get_clock().now().to_msg(),
-        frame_id=self._rtcm_frame_id
-      ),
-      data=rtcm
-    )
-
-  def _create_rtcm_msgs_rtcm_message(self, rtcm):
-    return rtcm_msgs_RTCM(
-      header=Header(
-        stamp=self.get_clock().now().to_msg(),
-        frame_id=self._rtcm_frame_id
-      ),
-      message=rtcm
-    )
 
 if __name__ == '__main__':
   # Start the node

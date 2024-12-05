@@ -2,7 +2,6 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
-from launch.substitutions import EnvironmentVariable
 from launch.actions import SetEnvironmentVariable
 
 def generate_launch_description():
@@ -13,7 +12,7 @@ def generate_launch_description():
           DeclareLaunchArgument('debug',                 default_value='false'),
           DeclareLaunchArgument('host',                  default_value='20.185.11.35'),
           DeclareLaunchArgument('port',                  default_value='2101'),
-          DeclareLaunchArgument('mountpoint',            default_value='VTRI_RTCM3'),
+          DeclareLaunchArgument('mountpoint',            default_value='VRS_RTCM3'),
           DeclareLaunchArgument('ntrip_version',         default_value='None'),
           DeclareLaunchArgument('authenticate',          default_value='True'),
           DeclareLaunchArgument('username',              default_value='user'),
@@ -66,7 +65,7 @@ def generate_launch_description():
                     'rtcm_frame_id': 'odom',
 
                     # Optional parameters that will allow for longer or shorter NMEA messages. Standard max length for NMEA is 82
-                    'nmea_max_length': 82,
+                    'nmea_max_length': 128,
                     'nmea_min_length': 3,
 
                     # Use this parameter to change the type of RTCM message published by the node. Defaults to "mavros_msgs", but we also support "rtcm_msgs"
