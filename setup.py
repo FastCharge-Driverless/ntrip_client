@@ -30,6 +30,8 @@ setup(
     license='MIT License',
     tests_require=['pytest'],
     scripts=[
-      'scripts/ntrip_ros.py'
+      'scripts/ntrip_ros.py',
+      'scripts/ntrip_ros_base.py',
+      'scripts/ntrip_serial_device_ros.py'
     ]
 )
