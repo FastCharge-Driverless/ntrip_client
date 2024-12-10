@@ -86,10 +86,10 @@ class NTRIPRosBase(Node):
     )
 
     # Get some timeout parameters for the NTRIP client
-    self._client.nmea_parser.nmea_max_length = self.get_parameter('nmea_max_length').value
-    self._client.nmea_parser.nmea_min_length = self.get_parameter('nmea_min_length').value
-    self._client.reconnect_attempt_max = self.get_parameter('reconnect_attempt_max').value
-    self._client.reconnect_attempt_wait_seconds = self.get_parameter('reconnect_attempt_wait_seconds').value
+    self._nmea_max_length = self.get_parameter('nmea_max_length').value
+    self._nmea_min_length = self.get_parameter('nmea_min_length').value
+    self._reconnect_attempt_max = self.get_parameter('reconnect_attempt_max').value
+    self._reconnect_attempt_wait_seconds = self.get_parameter('reconnect_attempt_wait_seconds').value
 
   def run(self):
     # Connect the client

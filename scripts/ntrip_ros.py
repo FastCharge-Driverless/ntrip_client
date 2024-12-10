@@ -81,6 +81,10 @@ class NTRIPRos(NTRIPRosBase):
       self._client.ca_cert = None
 
     # Get some timeout parameters for the NTRIP client
+    self._client.nmea_parser.nmea_max_length = self._nmea_max_length
+    self._client.nmea_parser.nmea_min_length = self._nmea_min_length
+    self._client.reconnect_attempt_max = self._reconnect_attempt_max
+    self._client.reconnect_attempt_wait_seconds = self._reconnect_attempt_wait_seconds
     self._client.rtcm_timeout_seconds = self.get_parameter('rtcm_timeout_seconds').value
 
 if __name__ == '__main__':
