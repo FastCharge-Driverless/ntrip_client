@@ -2,6 +2,11 @@
 Changelog for package ntrip_client
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Adds ability to subscribe to fix topic, and adds ability to interface with NTRIP device (`#59 <https://github.com/LORD-MicroStrain/ntrip_client/issues/59>`_)
+* Contributors: Rob
+
 1.3.0 (2024-02-22)
 ------------------
 * Updates README to mention new launch parameters (`#27 <https://github.com/LORD-MicroStrain/ntrip_client/issues/27>`_)
