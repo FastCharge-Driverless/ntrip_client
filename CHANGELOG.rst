@@ -2,8 +2,8 @@
 Changelog for package ntrip_client
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.4.1 (2025-04-15)
+------------------
 * Fix log message (`#61 <https://github.com/LORD-MicroStrain/ntrip_client/issues/61>`_)
 * Contributors: martin-kar
 
