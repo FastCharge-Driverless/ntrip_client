@@ -76,10 +76,10 @@ class SerialGNSSDevice:
   def reconnect(self):
     if self._connected:
       while not self._shutdown:
-        self._recoonect_attempt_count += 1
+        self._reconnect_attempt_count += 1
         self.disconnect()
         connect_success = self.connect()
-        if not connect_success and self._recoonect_attempt_count < self.reconnect_attempt_max:
+        if not connect_success and self._reconnect_attempt_count < self.reconnect_attempt_max:
           self._logerr('Reconnect failed. Retrying in {} seconds'.format(self.reconnect_attempt_wait_seconds)) 
           time.sleep(self.reconnect_attempt_wait_seconds)
         elif self._reconnect_attempt_count >= self.reconnect_attempt_max:
