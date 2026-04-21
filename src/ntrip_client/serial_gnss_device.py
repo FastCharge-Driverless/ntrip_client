@@ -16,6 +16,7 @@ class SerialGNSSDevice:
   def __init__(self, port, baudrate, logerr = logging.error, logwarn=logging.warning, loginfo=logging.info, logdebug=logging.debug):
         
     # Bit of a strange pattern here, but save the log functions so we can be agnostic of ROS
+    self._reconnect_attempt_count = 0
     self._logerr = logerr
     self._logwarn = logwarn
     self._loginfo = loginfo
