@@ -9,3 +9,8 @@ __pycache__
 
 # VIM swap files
 .*.sw*
+
+# Local env files with secrets (keep .env.example tracked)
+ntrip_client.env
+*.env
+!*.env.example

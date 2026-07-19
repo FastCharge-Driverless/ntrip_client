@@ -1,27 +1,29 @@
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, EnvironmentVariable
 from launch_ros.actions import Node
 from launch.actions import SetEnvironmentVariable
 
 def generate_launch_description():
       return LaunchDescription([
-          # Declare arguments with default values
-          DeclareLaunchArgument('namespace',             default_value='/'),
-          DeclareLaunchArgument('node_name',             default_value='ntrip_client'),
-          DeclareLaunchArgument('debug',                 default_value='false'),
-          DeclareLaunchArgument('host',                  default_value='20.185.11.35'),
-          DeclareLaunchArgument('port',                  default_value='2101'),
-          DeclareLaunchArgument('mountpoint',            default_value='VRS_RTCM3'),
-          DeclareLaunchArgument('ntrip_version',         default_value='None'),
-          DeclareLaunchArgument('authenticate',          default_value='True'),
-          DeclareLaunchArgument('username',              default_value='user'),
-          DeclareLaunchArgument('password',              default_value='pass'),
-          DeclareLaunchArgument('ssl',                   default_value='False'),
-          DeclareLaunchArgument('cert',                  default_value='None'),
-          DeclareLaunchArgument('key',                   default_value='None'),
-          DeclareLaunchArgument('ca_cert',               default_value='None'),
-          DeclareLaunchArgument('rtcm_message_package',  default_value='rtcm_msgs'),
+          # Declare arguments. Each default is read from an environment variable
+          # (with the value below as fallback), so the connection settings can be
+          # configured via the environment. A CLI arg (e.g. host:=...) still wins.
+          DeclareLaunchArgument('namespace',             default_value=EnvironmentVariable('NTRIP_NAMESPACE',            default_value='/')),
+          DeclareLaunchArgument('node_name',             default_value=EnvironmentVariable('NTRIP_NODE_NAME',           default_value='ntrip_client')),
+          DeclareLaunchArgument('debug',                 default_value=EnvironmentVariable('NTRIP_DEBUG',               default_value='true')),
+          DeclareLaunchArgument('host',                  default_value=EnvironmentVariable('NTRIP_HOST',                default_value='gnss-rtk.regione.abruzzo.it')),
+          DeclareLaunchArgument('port',                  default_value=EnvironmentVariable('NTRIP_PORT',                default_value='2101')),
+          DeclareLaunchArgument('mountpoint',            default_value=EnvironmentVariable('NTRIP_MOUNTPOINT',          default_value='0_RTCM_MSM')),
+          DeclareLaunchArgument('ntrip_version',         default_value=EnvironmentVariable('NTRIP_VERSION',             default_value='2.0.0')),
+          DeclareLaunchArgument('authenticate',          default_value=EnvironmentVariable('NTRIP_AUTHENTICATE',        default_value='true')),
+          DeclareLaunchArgument('username',              default_value=EnvironmentVariable('NTRIP_USERNAME',            default_value='SapienzaFastCharge')),
+          DeclareLaunchArgument('password',              default_value=EnvironmentVariable('NTRIP_PASSWORD',            default_value='')),
+          DeclareLaunchArgument('ssl',                   default_value=EnvironmentVariable('NTRIP_SSL',                 default_value='False')),
+          DeclareLaunchArgument('cert',                  default_value=EnvironmentVariable('NTRIP_CERT',                default_value='None')),
+          DeclareLaunchArgument('key',                   default_value=EnvironmentVariable('NTRIP_KEY',                 default_value='None')),
+          DeclareLaunchArgument('ca_cert',               default_value=EnvironmentVariable('NTRIP_CA_CERT',             default_value='None')),
+          DeclareLaunchArgument('rtcm_message_package',  default_value=EnvironmentVariable('NTRIP_RTCM_MESSAGE_PACKAGE', default_value='rtcm_msgs')),
 
           # Pass an environment variable to the node
           SetEnvironmentVariable(name='NTRIP_CLIENT_DEBUG', value=LaunchConfiguration('debug')),
@@ -79,9 +81,11 @@ def generate_launch_description():
                     'rtcm_timeout_seconds': 4
                   }
                 ],
-                # Uncomment the following section and replace "/gx5/nmea/sentence" with the topic you are sending NMEA on if it is not the one we requested
-                #remappings=[
-                #  ("nmea", "/gx5/nmea/sentence")
-                #],
+                # Remap 'fix' to the SBG driver's NavSatFix topic so the NTRIP client
+                # can send GGA position sentences to the caster (required by most casters
+                # to start streaming RTCM corrections)
+                remappings=[
+                  ("fix", "/imu/nav_sat_fix")
+                ],
           )
       ])
