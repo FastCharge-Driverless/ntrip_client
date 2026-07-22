@@ -1,10 +1,60 @@
+import os
+
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration, EnvironmentVariable
 from launch_ros.actions import Node
 from launch.actions import SetEnvironmentVariable
 
+
+def _find_env_file():
+    """Locate ntrip_client.env robustly across source and install layouts.
+    NTRIP_ENV_FILE wins; otherwise ascend from the launch file dir and the cwd
+    looking for src/ntrip_client/ntrip_client.env (or an ntrip_client.env next to us)."""
+    override = os.environ.get('NTRIP_ENV_FILE')
+    if override and os.path.isfile(override):
+        return override
+    rel = os.path.join('src', 'ntrip_client', 'ntrip_client.env')
+    for start in (os.path.dirname(os.path.abspath(__file__)), os.getcwd()):
+        d = start
+        for _ in range(10):
+            for cand in (os.path.join(d, rel), os.path.join(d, 'ntrip_client.env')):
+                if os.path.isfile(cand):
+                    return cand
+            parent = os.path.dirname(d)
+            if parent == d:
+                break
+            d = parent
+    return None
+
+
+def _load_env_file():
+    """Auto-load ntrip_client.env so the NTRIP_* settings (host/credentials) are
+    available without a manual `set -a; source ...env`. Precedence is preserved:
+    an already-exported env var (and any CLI arg) still wins, because we only
+    setdefault. Override the file location with NTRIP_ENV_FILE."""
+    path = _find_env_file()
+    if path and os.path.isfile(path):
+        with open(path) as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('#') or '=' not in line:
+                    continue
+                if line.startswith('export '):
+                    line = line[len('export '):]
+                k, v = line.split('=', 1)
+                k, v = k.strip(), v.strip()
+                if len(v) >= 2 and v[0] == v[-1] and v[0] in ('"', "'"):
+                    v = v[1:-1]
+                os.environ.setdefault(k, v)   # exported vars / CLI still win
+        print(f'[ntrip_client_launch] loaded env from {path}')
+        return path
+    print('[ntrip_client_launch] no ntrip_client.env found; relying on exported NTRIP_* / CLI args')
+    return None
+
+
 def generate_launch_description():
+      _load_env_file()
       return LaunchDescription([
           # Declare arguments. Each default is read from an environment variable
           # (with the value below as fallback), so the connection settings can be
