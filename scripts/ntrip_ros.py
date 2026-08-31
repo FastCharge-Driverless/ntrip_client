@@ -89,7 +89,31 @@ class NTRIPRos(NTRIPRosBase):
     self._client.reconnect_attempt_wait_seconds = self._reconnect_attempt_wait_seconds
     self._client.rtcm_timeout_seconds = self.get_parameter('rtcm_timeout_seconds').value
 
+import argparse
+
 if __name__ == '__main__':
+  # Handle --help / -h gracefully
+  if '--help' in sys.argv or '-h' in sys.argv:
+    parser = argparse.ArgumentParser(
+      prog='ros2 run ntrip_client ntrip_ros.py',
+      description='NTRIP client ROS 2 node. Connects to an NTRIP caster and publishes RTCM corrections to /rtcm.',
+      epilog='Recommended usage:\n  ros2 launch ntrip_client ntrip_client_launch.py (auto-loads ntrip_client.env)',
+      formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.print_help()
+    print('\nROS 2 Parameters (pass via --ros-args -p <param>:=<value>):')
+    print('  host (string)                  Caster host/IP (default: "127.0.0.1")')
+    print('  port (int)                     Caster port (default: 2101)')
+    print('  mountpoint (string)            Mountpoint stream name (default: "mount")')
+    print('  ntrip_version (string)         NTRIP version, e.g. "2.0.0" or "None"')
+    print('  authenticate (bool)            Whether authentication is required (default: False)')
+    print('  username (string)              Username for caster authentication')
+    print('  password (string)              Password for caster authentication')
+    print('  ssl (bool)                     Whether to use SSL (default: False)')
+    print('  rtcm_message_package (string)  Message package: "rtcm_msgs" (default) or "mavros_msgs"')
+    print('  rtcm_timeout_seconds (int)     Timeout before reconnecting (default: 4)')
+    sys.exit(0)
+
   # Start the node
   rclpy.init()
   node = NTRIPRos()

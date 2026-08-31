@@ -30,9 +30,4 @@ setup(
     description='NTRIP client that will publish RTCM corrections to a ROS topic, and optionally subscribe to NMEA messages to send to an NTRIP server',
     license='MIT License',
     tests_require=['pytest'],
-    scripts=[
-      'scripts/ntrip_ros.py',
-      'scripts/ntrip_ros_base.py',
-      'scripts/ntrip_serial_device_ros.py'
-    ]
 )

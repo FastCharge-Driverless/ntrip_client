@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+import sys
 import json
 import datetime
 import importlib.util
@@ -28,6 +29,8 @@ if importlib.util.find_spec(_RTCM_MSGS_NAME) is not None:
   have_rtcm_msgs = True
   from rtcm_msgs.msg import Message as rtcm_msgs_RTCM
 
+_DEFAULT_RTCM_PACKAGE = _RTCM_MSGS_NAME if have_rtcm_msgs else _MAVROS_MSGS_NAME
+
 class NTRIPRosBase(Node):
   def __init__(self, name):
     # Read a debug flag from the environment that should have been set by the launch file
@@ -44,7 +47,7 @@ class NTRIPRosBase(Node):
         ('rtcm_frame_id', 'odom'),
         ('nmea_max_length', NMEA_DEFAULT_MAX_LENGTH),
         ('nmea_min_length', NMEA_DEFAULT_MIN_LENGTH),
-        ('rtcm_message_package', _MAVROS_MSGS_NAME),
+        ('rtcm_message_package', _DEFAULT_RTCM_PACKAGE),
         ('reconnect_attempt_max', NTRIPBase.DEFAULT_RECONNECT_ATTEMPT_MAX),
         ('reconnect_attempt_wait_seconds', NTRIPBase.DEFAULT_RECONNECT_ATEMPT_WAIT_SECONDS),
       ]
@@ -65,14 +68,17 @@ class NTRIPRosBase(Node):
         self._create_rtcm_message = self._create_mavros_msgs_rtcm_message
       else:
         self.get_logger().fatal('The requested RTCM package {} is a valid option, but we were unable to import it. Please make sure you have it installed'.format(rtcm_message_package))
+        sys.exit(1)
     elif rtcm_message_package == _RTCM_MSGS_NAME:
       if have_rtcm_msgs:
         self._rtcm_message_type = rtcm_msgs_RTCM
         self._create_rtcm_message = self._create_rtcm_msgs_rtcm_message
       else:
         self.get_logger().fatal('The requested RTCM package {} is a valid option, but we were unable to import it. Please make sure you have it installed'.format(rtcm_message_package))
+        sys.exit(1)
     else:
       self.get_logger().fatal('The RTCM package {} is not a valid option. Please choose between the following packages {}'.format(rtcm_message_package, ','.join([_MAVROS_MSGS_NAME, _RTCM_MSGS_NAME])))
+      sys.exit(1)
 
     # Setup the RTCM publisher
     self._rtcm_pub = self.create_publisher(self._rtcm_message_type, 'rtcm', 10)
@@ -149,13 +155,15 @@ class NTRIPRosBase(Node):
       nmea_status = 2
     elif status == NavSatStatus.STATUS_GBAS_FIX:
       nmea_status = 5
+    elif abs(fix.latitude) > 0.001 or abs(fix.longitude) > 0.001:
+      nmea_status = 1
     else:
       nmea_status = 0
 
     # Assemble the sentence
-    nmea_sentence_no_checksum = f"$GPGGA,{nmea_utc},{nmea_lat},{nmea_lat_direction},{nmea_lon},{nmea_lon_direction},{nmea_status},05,1.0,100.0,M,-32.0,M,,0000"
+    nmea_sentence_no_checksum = f"$GPGGA,{nmea_utc},{nmea_lat},{nmea_lat_direction},{nmea_lon},{nmea_lon_direction},{nmea_status},08,1.0,100.0,M,-32.0,M,,0000"
     nmea_checksum = NMEAParser.checksum(nmea_sentence_no_checksum)
-    nmea_sentence = f"{nmea_sentence_no_checksum}*{nmea_checksum:x}\r\n"
+    nmea_sentence = f"{nmea_sentence_no_checksum}*{nmea_checksum:02X}\r\n"
 
     # Send the sentence to the client
     self._client.send_nmea(nmea_sentence)
