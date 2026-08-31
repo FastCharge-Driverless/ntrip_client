@@ -4,6 +4,8 @@ import os
 import sys
 import json
 
+sys.path.insert(0, os.path.dirname(__file__))
+
 import rclpy
 
 from ntrip_ros_base import NTRIPRosBase
